@@ -32,6 +32,7 @@ I2CFLAG	EQU 0X24
 IDFLAG	EQU 0X25
 SLVADD  EQU 0X26
 PFLAG   EQU 0X27
+TCOUNT  EQU 0X28
  ;====END RAM LOCATIONS=========================================================
  
  ;====MEMORY ORG================================================================
@@ -203,11 +204,11 @@ PFLAG   EQU 0X27
 INTERRUPT
     
     BANKSEL PIR1
-    BTFSC   SSP1IF
+    BTFSC   PIR1,SSP1IF
     CALL    I2CHANDLER
-    BTFSC   ADIF
+    BTFSC   PIR1,ADIF
     CALL    ADCHANDLER
-    BTFSC   TIMER2
+    BTFSC   PIR1,TMR2IF
     CALL    T2HANDLER
     
     RETFIE
@@ -338,7 +339,74 @@ IDCALL
     BSF	    I2CFLAG,2
     RETURN
 
-;----WRITE ADDRESS-------------------------------------------------------------
+;======I2C HANDLER END==========================================================
+
+;======ADC HANDLER==============================================================
+ADCHANDLER
+    BCF     PIR1,ADIF   ;Clear ADC Flag
+    BANKSEL ADRESH      
+    MOVF    ADRESH,0    ;Grab 8 MSBs of ADC result
+    BANKSEL ADCRES      
+    MOVWF   ADCRES      ;Save ADC result
+    MOVLW   0X04        ;Increment Analog Channel
+    ADDWF   ADCON0,1    ;/
+    MOVLW   0X7C        ;Mask off the Analog channel select in ADCON0
+    ANDWF   ADCON0,0    ;/
+    SUBLW   0X0C        ;Check to see if AN3 is selected
+    BTFSC   STATUS,Z    ;/
+    CALL    RESETADC    ;If AN3 is selected run sub to select AN0
+    RETURN
+
+RESETADC
+    BCF     ADCON0,CHS0 ;Select analog channel 0
+    BCF     ADCON1,CHS1 ;/
+    RETURN
+;======ADC HANDLER END==========================================================
+
+;======TIMER2 HANDLER===========================================================
+T2HANDLER
+    BCF     PIR1,TMR2IF     ;Clear Timer2 Flag
+    INCF    TCOUNT,1        ;Increment Timer2 Counter
+    MOVLW   D'16'           ;Check to see if 16ms has passed since counter started
+    SUBWF   TCOUNT,0        ;//
+    BTFSC   STATUS,Z        ;/
+    CALL    ADC0            ;Start AN0 ADC if 16ms has passed
+    MOVLW   D'32'           ;Check to see if 32ms has passed since counter started
+    SUBWF   TCOUNT,0        ;//
+    BTFSC   STATUS,Z        ;/
+    CALL    ADC1            ;Start AN0 ADC if 32ms has passed
+    MOVLW   D'48'           ;Check to see if 48ms has passed since counter started
+    SUBWF   TCOUNT,0        ;//
+    BTFSC   STATUS,Z        ;/
+    CALL    ADC2            ;Start AN0 ADC if 48ms has passed. The Sharp IR sensor
+    RETURN                  ;takes 48ms max to take a new measuremnt. The timer is
+                            ;reset every 48ms because of this.
+ADC0
+    BANKSEL ADCON0          
+    BSF     ADCON0,GO       ;Start ADC for AN0
+    BANKSEL FSR1L_SHAD      
+    MOVLW   LOW(SENSOR1)    ;Set memory location for the next result
+    MOVWF   FSR1L_SHAD      ;/
+    RETURN
+
+ADC1
+    BANKSEL ADCON0
+    BSF     ADCON0,GO       ;Start ADC for AN1
+    BANKSEL FSR1L_SHAD
+    INCF    FSR1L_SHAD,1    ;Set memory location for the next result
+    RETURN
+
+ADC2
+    BANKSEL ADCON0
+    BSF     ADCON0,GO       ;Start ADC for AN2
+    BANKSEL FSR1L_SHAD
+    INCF    FSR1L_SHAD,1    ;Set memory location for the next result
+    BANKSEL TCOUNT
+    CLRF    TCOUNT          ;Reset Timer Counter
+    RETURN
+;======TIMER2 HANDLER END=======================================================
+
+;----WRITE ADDRESS--------------------------------------------------------------
 WRITEADD
     BCF     PFLAG,0     ;Clear the Flag that was set
 
