@@ -30,6 +30,8 @@ SENSOR3 EQU 0X22
 ADCRES	EQU 0X23
 I2CFLAG	EQU 0X24
 IDFLAG	EQU 0X25
+SLVADD  EQU 0X26
+PFLAG   EQU 0X27
  ;====END RAM LOCATIONS=========================================================
  
  ;====MEMORY ORG================================================================
@@ -98,7 +100,7 @@ IDFLAG	EQU 0X25
 ;------End Indirect Addressing Setup--------------------------------------------
     
 ;------ADC Setup----------------------------------------------------------------
-    BANKSEL ADCON2	    ;SELECT BANK 0 FOR ADCON0
+    BANKSEL ADCON2	        ;SELECT BANK 0 FOR ADCON0
     BCF	    ADCON2,TRIGSEL3 ;TRIGGER DISABLED
     BCF	    ADCON2,TRIGSEL2 ;///
     BCF	    ADCON2,TRIGSEL1 ;//
@@ -108,7 +110,7 @@ IDFLAG	EQU 0X25
     BSF	    ADCON2,CHSN1    ;//
     BSF	    ADCON2,CHSN0    ;/
     
-    BANKSEL		ADCON1		;SELECT BANK FOR ADCON1
+    BANKSEL	ADCON1		    ;SELECT BANK FOR ADCON1
     BCF	    ADCON1,ADFM	    ;SIGN MAGNITUDE FORMAT	
     BCF	    ADCON1,ADCS2    ;FOSC/32
     BSF	    ADCON1,ADCS1    ;//
@@ -227,24 +229,32 @@ I2CHANDLER
     BTFSC   I2CFLAG,0	    ;Check to see if sensor data was called for
     GOTO    READSENSOR	    ;Goto a code that will send the sensor data
     BTFSC   I2CFLAG,2	    ;Check to see if the ID is wanted
-    GOTO    READID	    ;Goto the code that sends the ID TAG
-    
-          
+    GOTO    READID	        ;Goto the code that sends the ID TAG
+              
 RADDRESS
     BANKSEL SSPBUF
     MOVF    SSPBUF,0
     RETURN
     
-    
-    
+
+;-----Write -----------------------------------------------------------------
 WRITE
     BANKSEL I2CFLAG
     BTFSC   I2CFLAG,1
     GOTO    NEWADD
     BANKSEL SSPBUF
     
+    
+
 NEWADD	;ADD CODE TO SET SLAVE ADDRESS TO RECIEVED BYTE
+    BANKSEL SSPBUF      
+    MOVF    SSPBUF,0    ;Set Slave address to recieved Byte
+    BANKSEL SLVADD      ;//
+    MOVWF   SLVADD      ;/
+    BSF     PFLAG,0     ;Set a personal flag to run sub in main
     RETURN
+
+;-----Write End---------------------------------------------------------------
     
 ;------READ SENSORS------------------------------------------------------------- I think clock release still needs to be added after data is loaded
 READSENSOR
@@ -315,8 +325,48 @@ ADDCALL
 IDCALL
     BANKSEL I2CFLAG
     BSF	    I2CFLAG,2
+
+;----WRITE ADDRESS-------------------------------------------------------------
+WRITEADD
+    BCF     PFLAG,0     ;Clear the Flag that was set
+
+    BANKSEL EEADRL      
+    MOVLW   0X00        ;Slave address is placed in EEPROM address 0x00
+    MOVWF   EEADRL
+    BANKSEL SLVADD
+    MOVF    SLVADD,0    ;Move slave address that is to be saved into EEDAT
+    BANKSEL EEDATL      ;//
+    MOVWF   EEDATL      ;/
+    BCF     EECON1,CFGS ;Deselect configuration space
+    BCF     EECON1,EEPGD;Point to Data Memory
+    BSF     EECON1,WREN ;Enable Write
+
+    BCF     INTCON,GIE  ;Disable interrupts
+
+    MOVLW   0X55        ;Charge Pump
+    MOVWF   EECON2      ;///
+    MOVLW   0XAA        ;//
+    MOVWF   EECON2      ;/
+    BSF     EECON1,WR   ;Write the value into the address
+
+    BSF     INTCON,GIE  ;Re enable interrupts
+    BCF     EECON1,WREN ;Disable Write
+    BTFSC   EECON1,WR   ;Wait until write is finished
+    GOTO    $-2         ;/
+    BANKSEL SLVADD      ;Set the Slave address of the PIC to the new value that
+    MOVF    SLVADD,0    ;was saved into the EEPROM
+    BANKSEL SSPADD      ;//
+    MOVWF   SSPADD      ;/
+    RETURN
+;----WRITE ADDRESS END---------------------------------------------------------
     
+;====MAIN======================================================================
 MAINBEGIN
+    BANKSEL PFLAG
+    BTFSC   PFLAG,0
+    CALL    WRITEADD
+
+    GOTO    MAINBEGIN
     
     
     
