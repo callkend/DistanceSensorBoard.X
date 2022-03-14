@@ -218,12 +218,12 @@ INTERRUPT
 I2CHANDLER		
     BCF	    PIR1,SSP1IF		;Clear MSSP Flag
     
-    BANKSEL SSPSTAT
-    BTFSS   D_NOT_A
-    GOTO    RADDRESS
+    BANKSEL SSPSTAT         
+    BTFSS   D_NOT_A         ;Check to see if recieved byte was data or address
+    GOTO    RADDRESS        ;If address is recieved clear the buffer
     
-    BTFSS   SSPSTAT,R_NOT_W
-    GOTO    WRITE
+    BTFSS   SSPSTAT,R_NOT_W ;Check to see if a write or a read is requested
+    GOTO    WRITE           ;Go to a sub that handles writes
     
     BANKSEL I2CFLAG
     BTFSC   I2CFLAG,0	    ;Check to see if sensor data was called for
@@ -231,7 +231,7 @@ I2CHANDLER
     BTFSC   I2CFLAG,2	    ;Check to see if the ID is wanted
     GOTO    READID	        ;Goto the code that sends the ID TAG
               
-RADDRESS
+RADDRESS                    ;Clear SSPBUF to prevent an overwrite error
     BANKSEL SSPBUF
     MOVF    SSPBUF,0
     RETURN
@@ -239,14 +239,18 @@ RADDRESS
 
 ;-----Write -----------------------------------------------------------------
 WRITE
-    BANKSEL I2CFLAG
-    BTFSC   I2CFLAG,1
-    GOTO    NEWADD
+    BANKSEL I2CFLAG         
+    BTFSC   I2CFLAG,1       ;Check to see if the a new address will be writen
+    GOTO    NEWADD          ;Run sub to set new slave address
+    MOVLW   0X03            ;Set the PCL LATH to table location
+    MOVWF   PCLATH          ;/
     BANKSEL SSPBUF
-    
+    MOVF    SSPBUF,0        ;The recieved data will be used to make a calcultated
+    GOTO    I2CTABLE        ;jump in the table.
     
 
 NEWADD	;ADD CODE TO SET SLAVE ADDRESS TO RECIEVED BYTE
+    BCF     I2CFLAG,1   ;Clear the flag that called the sub
     BANKSEL SSPBUF      
     MOVF    SSPBUF,0    ;Set Slave address to recieved Byte
     BANKSEL SLVADD      ;//
@@ -259,10 +263,11 @@ NEWADD	;ADD CODE TO SET SLAVE ADDRESS TO RECIEVED BYTE
 ;------READ SENSORS------------------------------------------------------------- I think clock release still needs to be added after data is loaded
 READSENSOR
     BANKSEL SSPBUF
-    MOVF    INDF0,0
-    MOVWF   SSPBUF
+    MOVF    INDF0,0     ;Move the data of the selected sensor into the SSPBUF
+    MOVWF   SSPBUF      ;/
+    BSF     SSPCON1,CKP ;Release SCL allowing for the data to be clocked out
     BANKSEL FSR0L_SHAD
-    INCF    FSR0L_SHAD,1
+    INCF    FSR0L_SHAD,1;Increament to the next sensor to be read
     RETURN
     
 ;------END READ SENSORS---------------------------------------------------------   
@@ -283,6 +288,7 @@ SENDI
     BANKSEL SSPBUF
     MOVLW   ID1
     MOVWF   SSPBUF
+    BSF     SSPCON1,CKP
     BANKSEL IDFLAG
     LSLF    IDFLAG,1
     RETURN
@@ -291,6 +297,7 @@ SENDN
     BANKSEL SSPBUF
     MOVLW   ID2
     MOVWF   SSPBUF
+    BSF     SSPCON1,CKP
     BANKSEL IDFLAG
     LSLF    IDFLAG,1
     RETURN
@@ -299,6 +306,7 @@ SENDF
     BANKSEL SSPBUF
     MOVLW   ID3
     MOVWF   SSPBUF
+    BSF     SSPCON1,CKP
     BANKSEL IDFLAG
     LSLF    IDFLAG,1
     RETURN
@@ -307,6 +315,7 @@ SENDNUM
     BANKSEL SSPBUF
     MOVLW   ID4
     MOVWF   SSPBUF
+    BSF     SSPCON1,CKP
     BANKSEL IDFLAG
     MOVLW   0X01
     MOVWF   IDFLAG
@@ -319,12 +328,15 @@ READCALL
     BANKSEL FSR0L_SHAD
     MOVLW   LOW(SENSOR1)
     MOVWF   FSR0L_SHAD
+    RETURN
 ADDCALL
     BANKSEL I2CFLAG
     BSF	    I2CFLAG,1
+    RETURN
 IDCALL
     BANKSEL I2CFLAG
     BSF	    I2CFLAG,2
+    RETURN
 
 ;----WRITE ADDRESS-------------------------------------------------------------
 WRITEADD
@@ -373,8 +385,11 @@ MAINBEGIN
     
 ORG 0X300   
 I2CTABLE
-    GOTO    READCALL	;Tells the PIC that the sensors data is wanted
+    ADDWF   PCL,1
+    GOTO    READCALL;Tells the PIC that the sensors data is wanted
+ORG 0X20
     GOTO    ADDCALL	;Tells the PIC that the slave address will change
+ORG 0X3C
     GOTO    IDCALL	;Tells the PIC that the ID will be read
     END
     
