@@ -64,7 +64,8 @@ SETUP
     BANKSEL TRISA
     MOVLW   B'00000111'
     MOVWF   TRISA
-    CLRF    TRISB
+    MOVLW   B'11000000'
+    MOVWF   TRISB
     CLRF    TRISC
     BANKSEL ANSELA
     MOVLW   B'00000111'
@@ -76,9 +77,9 @@ SETUP
     
 ;------ALTERNATE PIN SETUP------------------------------------------------------  
     BANKSEL APFCON1		;SETTING UP ALTERNATE TRANSMIT AND RECEIVE 
-    BCF	    APFCON1,TXSEL	;////
+    BCF	    APFCON1,TXSEL	;//// 
     BCF	    APFCON1,RXSEL	;///
-    BSF	    APFCON1,SCKSEL	;//
+    BSF	    APFCON1,SCKSEL	;// Changed for the ant board test to port b
     BSF	    APFCON1,SDISEL	;/
 ;------ALTERNATE PIN SETUP END--------------------------------------------------
     
@@ -159,24 +160,32 @@ SETUP
     LSLF    EEDATL,0		;Grab the Slave Address if there is one from EEPROM
     
     BANKSEL SSPADD
-    BTFSC   STATUS,Z		;Check to see if the EEPROM has data
+    ;BTFSC   STATUS,Z		;Check to see if the EEPROM has data
     MOVLW   0X20		;Default Slave Address 0X10
     MOVWF   SSPADD		;SLAVE MODE ADDRESS
     
     BANKSEL SSPCON1
-    BSF	    SSPCON1, CKP	;Enable Clock
-    BSF	    SSPCON1, SSPEN	;ENABLE SERIAL PORT FOR I2C
     BCF	    SSPCON1, SSPM3	; 0110 I2C Slave Mode
     BSF	    SSPCON1, SSPM2	;--/
     BSF	    SSPCON1, SSPM1	;-/
     BCF	    SSPCON1, SSPM0	;/
+    BSF	    SSPCON1, SSPEN	;ENABLE SERIAL PORT FOR I2C
+    BSF	    SSPCON1, CKP	;Enable Clock
     
-    BANKSEL	SSPCON2
+    
+    BANKSEL SSPCON2
     BCF	    SSPCON2, GCEN	;GENERAL CALL DISABLE BIT
     BCF	    SSPCON2,SEN		;Disable Clock streching
+    
+    BANKSEL SSPCON3
+    BCF	    SSPCON3,PCIE
+    BCF	    SSPCON3,SCIE
+    BSF	    SSPCON3,BOEN
+    BCF	    SSPCON3,AHEN
+    BCF	    SSPCON3,DHEN
 
-    BANKSEL	SSPSTAT
-    BSF	    SSPSTAT,SMP		;SET SLEW RATE TO 100K FOR I2C
+    BANKSEL SSPSTAT
+    BCF	    SSPSTAT,SMP		;SET SLEW RATE TO 100K FOR I2C
     BSF	    SSPSTAT,CKE		;ENABLE SMBUS SPECIFIC INPUTS
 
 ;------END I2C SETUP------------------------------------------------------------
@@ -220,21 +229,21 @@ I2CHANDLER
     BCF	    PIR1,SSP1IF		;Clear MSSP Flag
     
     BANKSEL SSPSTAT         
-    BTFSS   SSPSTAT,D_NOT_A         ;Check to see if recieved byte was data or address
+    BTFSS   SSPSTAT,D_NOT_A ;Check to see if recieved byte was data or address
     GOTO    RADDRESS        ;If address is recieved clear the buffer
     
     BTFSS   SSPSTAT,R_NOT_W ;Check to see if a write or a read is requested
     GOTO    WRITE           ;Go to a sub that handles writes
+              
+RADDRESS                    ;Clear SSPBUF to prevent an overwrite error
+    BANKSEL SSPBUF
+    MOVF    SSPBUF,0
     
     BANKSEL I2CFLAG
     BTFSC   I2CFLAG,0	    ;Check to see if sensor data was called for
     GOTO    READSENSOR	    ;Goto a code that will send the sensor data
     BTFSC   I2CFLAG,2	    ;Check to see if the ID is wanted
     GOTO    READID	        ;Goto the code that sends the ID TAG
-              
-RADDRESS                    ;Clear SSPBUF to prevent an overwrite error
-    BANKSEL SSPBUF
-    MOVF    SSPBUF,0
     RETURN
     
 
@@ -276,6 +285,7 @@ READSENSOR
 ;------READID------------------------------------------------------------------- I think clock release still needs to be added after data is loaded
 READID
     BANKSEL IDFLAG
+    BSF	    PORTB,3  
     BTFSC   IDFLAG,0
     GOTO    SENDI
     BTFSC   IDFLAG,1
@@ -445,6 +455,8 @@ MAINBEGIN
     BANKSEL PFLAG
     BTFSC   PFLAG,0
     CALL    WRITEADD
+    MOVF    I2CFLAG,0
+    MOVWF   PORTB
 
     GOTO    MAINBEGIN
     
@@ -455,9 +467,9 @@ MAINBEGIN
 I2CTABLE
     ADDWF   PCL,1
     GOTO    READCALL;Tells the PIC that the sensors data is wanted
-    ORG 0X320
+    ORG 0X321
     GOTO    ADDCALL	;Tells the PIC that the slave address will change
-    ORG 0X33C
+    ORG 0X33D
     GOTO    IDCALL	;Tells the PIC that the ID will be read
     END
     
