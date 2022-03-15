@@ -44,7 +44,7 @@ TCOUNT  EQU 0X28
  ;====END MEMORY ORG============================================================
  
  ;====SETUP=====================================================================
- SETUP
+SETUP
  ;-------OSCILLATOR SETUP-------------------------------------------------------
     BANKSEL OSCCON	    ;INTERNAL OSCILATOR CONFIGURED TO 32MHZ
     BSF	    OSCCON,SPLLEN   ;/      
@@ -136,10 +136,10 @@ TCOUNT  EQU 0X28
     
 ;------Timer 2 Setup------------------------------------------------------------
     BANKSEL T2CON
-    BCF	    T2CON,T2CONPS3
-    BCF	    T2CON,T2CONPS2
-    BCF	    T2CON,T2CONPS1
-    BSF	    T2CON,T2CONPS0
+    BCF	    T2CON,T2OUTPS3
+    BCF	    T2CON,T2OUTPS2
+    BCF	    T2CON,T2OUTPS1
+    BSF	    T2CON,T2OUTPS0
     BSF	    T2CON,T2CKPS1
     BCF	    T2CON,T2CKPS0
     
@@ -220,7 +220,7 @@ I2CHANDLER
     BCF	    PIR1,SSP1IF		;Clear MSSP Flag
     
     BANKSEL SSPSTAT         
-    BTFSS   D_NOT_A         ;Check to see if recieved byte was data or address
+    BTFSS   SSPSTAT,D_NOT_A         ;Check to see if recieved byte was data or address
     GOTO    RADDRESS        ;If address is recieved clear the buffer
     
     BTFSS   SSPSTAT,R_NOT_W ;Check to see if a write or a read is requested
@@ -451,13 +451,13 @@ MAINBEGIN
     
     
     
-ORG 0X300   
+    ORG 0X300   
 I2CTABLE
     ADDWF   PCL,1
     GOTO    READCALL;Tells the PIC that the sensors data is wanted
-ORG 0X20
+    ORG 0X320
     GOTO    ADDCALL	;Tells the PIC that the slave address will change
-ORG 0X3C
+    ORG 0X33C
     GOTO    IDCALL	;Tells the PIC that the ID will be read
     END
     
