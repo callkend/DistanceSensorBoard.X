@@ -93,6 +93,8 @@ SETUP
     CLRF    I2CFLAG
     MOVLW   0X01
     MOVWF   IDFLAG
+    MOVLW   0X20
+    MOVWF   SLVADD
 ;------End Personal Memory Setup------------------------------------------------
     
 ;------Indirect Addressing Setup------------------------------------------------
@@ -152,16 +154,23 @@ SETUP
 ;------I2C SETUP----------------------------------------------------------------
     ;Slave Address needs to be verified to make sure that it working correctly
     BANKSEL EEADRL
+    MOVLW   0X01
+    MOVWF   EEADRL
+    BCF	    EECON1,CFGS
+    BCF	    EECON1,EEPGD
+    BSF	    EECON1,RD
+    MOVLW   0X55
+    SUBWF   EEDATL,0
+    BTFSC   STATUS,Z        
+    CALL    STARTADD         ;Grabs Slave Address that was saved in EEPROM
+
+    BANKSEL EEADRL
     MOVLW   0X00
     MOVWF   EEADRL
     BCF	    EECON1,CFGS
     BCF	    EECON1,EEPGD
     BSF	    EECON1,RD
-    LSLF    EEDATL,0		;Grab the Slave Address if there is one from EEPROM
-    
-    BANKSEL SSPADD
-    ;BTFSC   STATUS,Z		;Check to see if the EEPROM has data
-    MOVLW   0X20		;Default Slave Address 0X10
+    LSLF    EEDATL,0
     MOVWF   SSPADD		;SLAVE MODE ADDRESS
     
     BANKSEL SSPCON1
@@ -205,6 +214,47 @@ SETUP
     BSF	    INTCON,PEIE		;Enable peripheral interrupts
     BSF	    INTCON,GIE		;Enable Global interrupts
     GOTO    MAINBEGIN
+
+STARTADD
+BANKSEL EEADRL      
+    MOVLW   0X01        ;Slave address is placed in EEPROM address 0x00
+    MOVWF   EEADRL
+    MOVLW   OX55        ;Move Start code to EEPROM 0x01
+    BANKSEL EEDATL      ;//
+    MOVWF   EEDATL      ;/
+    BCF     EECON1,CFGS ;Deselect configuration space
+    BCF     EECON1,EEPGD;Point to Data Memory
+    BSF     EECON1,WREN ;Enable Write
+
+    MOVLW   0X55        ;Charge Pump
+    MOVWF   EECON2      ;///
+    MOVLW   0XAA        ;//
+    MOVWF   EECON2      ;/
+    BSF     EECON1,WR   ;Write the value into the address
+
+    BCF     EECON1,WREN ;Disable Write
+    BTFSC   EECON1,WR   ;Wait until write is finished
+    GOTO    $-2         ;/
+
+    BANKSEL EEADRL      
+    MOVLW   0X00        ;Slave address is placed in EEPROM address 0x00
+    MOVWF   EEADRL
+    MOVLW   0x10        ;Move slave address that is to be saved into EEDAT
+    MOVWF   EEDATL      ;/
+    BCF     EECON1,CFGS ;Deselect configuration space
+    BCF     EECON1,EEPGD;Point to Data Memory
+    BSF     EECON1,WREN ;Enable Write
+
+    MOVLW   0X55        ;Charge Pump
+    MOVWF   EECON2      ;///
+    MOVLW   0XAA        ;//
+    MOVWF   EECON2      ;/
+    BSF     EECON1,WR   ;Write the value into the address
+
+    BCF     EECON1,WREN ;Disable Write
+    BTFSC   EECON1,WR   ;Wait until write is finished
+    GOTO    $-2         ;/
+    RETURN
       
 ;======End of Setup=============================================================    
 
@@ -455,6 +505,8 @@ MAINBEGIN
     BANKSEL PFLAG
     BTFSC   PFLAG,0
     CALL    WRITEADD
+    BTFSC   PFLAG,1
+    CALL    WRITE55
     MOVF    I2CFLAG,0
     MOVWF   PORTB
 
