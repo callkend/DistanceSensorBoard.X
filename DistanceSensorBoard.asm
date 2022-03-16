@@ -91,6 +91,7 @@ SETUP
     MOVWF   SENSOR3
     CLRF    ADCRES
     CLRF    I2CFLAG
+    CLRF    PFLAG
     MOVLW   0X01
     MOVWF   IDFLAG
     MOVLW   0X20
@@ -161,7 +162,7 @@ SETUP
     BSF	    EECON1,RD
     MOVLW   0X55
     SUBWF   EEDATL,0
-    BTFSC   STATUS,Z        
+    BTFSS   STATUS,Z        
     CALL    STARTADD         ;Grabs Slave Address that was saved in EEPROM
 
     BANKSEL EEADRL
@@ -171,6 +172,7 @@ SETUP
     BCF	    EECON1,EEPGD
     BSF	    EECON1,RD
     LSLF    EEDATL,0
+    BANKSEL SSPADD
     MOVWF   SSPADD		;SLAVE MODE ADDRESS
     
     BANKSEL SSPCON1
@@ -216,10 +218,10 @@ SETUP
     GOTO    MAINBEGIN
 
 STARTADD
-BANKSEL EEADRL      
+BANKSEL	    EEADRL      
     MOVLW   0X01        ;Slave address is placed in EEPROM address 0x00
     MOVWF   EEADRL
-    MOVLW   OX55        ;Move Start code to EEPROM 0x01
+    MOVLW   0X55        ;Move Start code to EEPROM 0x01
     BANKSEL EEDATL      ;//
     MOVWF   EEDATL      ;/
     BCF     EECON1,CFGS ;Deselect configuration space
@@ -335,7 +337,6 @@ READSENSOR
 ;------READID------------------------------------------------------------------- I think clock release still needs to be added after data is loaded
 READID
     BANKSEL IDFLAG
-    BSF	    PORTB,3  
     BTFSC   IDFLAG,0
     GOTO    SENDI
     BTFSC   IDFLAG,1
@@ -494,7 +495,7 @@ WRITEADD
     BTFSC   EECON1,WR   ;Wait until write is finished
     GOTO    $-2         ;/
     BANKSEL SLVADD      ;Set the Slave address of the PIC to the new value that
-    MOVF    SLVADD,0    ;was saved into the EEPROM
+    LSLF    SLVADD,0    ;was saved into the EEPROM
     BANKSEL SSPADD      ;//
     MOVWF   SSPADD      ;/
     RETURN
@@ -505,9 +506,7 @@ MAINBEGIN
     BANKSEL PFLAG
     BTFSC   PFLAG,0
     CALL    WRITEADD
-    BTFSC   PFLAG,1
-    CALL    WRITE55
-    MOVF    I2CFLAG,0
+    LSLF    SLVADD,0
     MOVWF   PORTB
 
     GOTO    MAINBEGIN
@@ -519,7 +518,7 @@ MAINBEGIN
 I2CTABLE
     ADDWF   PCL,1
     GOTO    READCALL;Tells the PIC that the sensors data is wanted
-    ORG 0X321
+    ORG 0X323
     GOTO    ADDCALL	;Tells the PIC that the slave address will change
     ORG 0X33D
     GOTO    IDCALL	;Tells the PIC that the ID will be read
