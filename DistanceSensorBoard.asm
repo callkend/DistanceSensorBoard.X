@@ -346,7 +346,7 @@ READID
     BTFSC   IDFLAG,3
     GOTO    SENDNUM
     
-SENDI
+SENDI			    ;Send the first letter of the Identification
     BANKSEL SSPBUF
     MOVLW   ID1
     MOVWF   SSPBUF
@@ -355,7 +355,7 @@ SENDI
     LSLF    IDFLAG,1
     RETURN
     
-SENDN
+SENDN			    ;Send the second letter if the Identification
     BANKSEL SSPBUF
     MOVLW   ID2
     MOVWF   SSPBUF
@@ -364,7 +364,7 @@ SENDN
     LSLF    IDFLAG,1
     RETURN
     
-SENDF
+SENDF			    ;This is a really good comment
     BANKSEL SSPBUF
     MOVLW   ID3
     MOVWF   SSPBUF
@@ -409,6 +409,7 @@ ADCHANDLER
     MOVF    ADRESH,0    ;Grab 8 MSBs of ADC result
     BANKSEL ADCRES      
     MOVWF   ADCRES      ;Save ADC result
+    BANKSEL ADCON0
     MOVLW   0X04        ;Increment Analog Channel
     ADDWF   ADCON0,1    ;/
     MOVLW   0X7C        ;Mask off the Analog channel select in ADCON0
@@ -416,11 +417,13 @@ ADCHANDLER
     SUBLW   0X0C        ;Check to see if AN3 is selected
     BTFSC   STATUS,Z    ;/
     CALL    RESETADC    ;If AN3 is selected run sub to select AN0
+    BANKSEL PFLAG
+    BSF     PFLAG,1
     RETURN
 
 RESETADC
     BCF     ADCON0,CHS0 ;Select analog channel 0
-    BCF     ADCON1,CHS1 ;/
+    BCF     ADCON0,CHS1 ;/ 
     RETURN
 ;======ADC HANDLER END==========================================================
 
@@ -500,14 +503,25 @@ WRITEADD
     MOVWF   SSPADD      ;/
     RETURN
 ;----WRITE ADDRESS END---------------------------------------------------------
+
+;----ADC CONVERTER-------------------------------------------------------------
+ADCCONVERT
+    BCF	    PFLAG,1
+    BANKSEL ADCRES
+    MOVF    ADCRES,0
+    MOVWF   PORTB
+    
+    RETURN
+;----ADC CONVERTER END---------------------------------------------------------
     
 ;====MAIN======================================================================
 MAINBEGIN
     BANKSEL PFLAG
     BTFSC   PFLAG,0
     CALL    WRITEADD
-    LSLF    SLVADD,0
-    MOVWF   PORTB
+    BANKSEL PFLAG
+    BTFSC   PFLAG,1
+    CALL    ADCCONVERT
 
     GOTO    MAINBEGIN
     
