@@ -518,66 +518,68 @@ WRITEADD
 ;----ADC CONVERTER--------------------------------------------------------------
 ADCCONVERT
     BCF	    PFLAG,1	;Clear ADC flag
-    MOVLW   D'6'
-    MOVWF   ADCCOUNT
-RJUSTIFY
-    LSRF    ADCRESH,1
-    RRF	    ADCRESL,1
-    DECFSZ  ADCCOUNT
-    GOTO    RJUSTIFY
+    MOVLW   D'6'	;Shift ADC result 6 times to right justify 10-bit result
+    MOVWF   ADCCOUNT	;//////
+RJUSTIFY		;/////
+    LSRF    ADCRESH,1	;////
+    RRF	    ADCRESL,1	;///
+    DECFSZ  ADCCOUNT	;//
+    GOTO    RJUSTIFY	;/
     
-    MOVF    ADCRESH,0
-    MOVWF   DIVISORH
-    MOVF    ADCRESL,0
-    MOVWF   DIVISORL
+    MOVF    ADCRESH,0	;Set the Denominator as the ADC result
+    MOVWF   DIVISORH	;///
+    MOVF    ADCRESL,0	;//
+    MOVWF   DIVISORL	;/
     
-    MOVLW   0X17	;DEGUGGING
-    MOVWF   DIVIDENDH	;///
+    MOVLW   0X17	;The Nominator is Constant value that brings result in
+    MOVWF   DIVIDENDH	;line with the inverse distance curve of the sensor.
     MOVLW   0XA2	;//
     MOVWF   DIVIDENDL	;/
     
-    
-    
-    CLRF    REMAINH
-    CLRF    REMAINL
-    BCF	    STATUS,C
-    
-    MOVLW   D'17'
-    MOVWF   ADCCOUNT
-    
-DIVIDELOOP
-    RLF	    DIVIDENDL,1
-    RLF	    DIVIDENDH,1
-    DECFSZ  ADCCOUNT,1
-    GOTO    $+2
-    RETURN
-    RLF	    REMAINL,1
-    RLF	    REMAINH,1
-    MOVF    DIVISORL,0
-    SUBWF   REMAINL,1
-    MOVF    DIVISORH,0
-    SUBWFB  REMAINH,1
-    BTFSS   STATUS,C
-    GOTO    $+3
-    BSF	    STATUS,C
-    GOTO    DIVIDELOOP
-    MOVF    DIVISORL,0
-    ADDWF   REMAINL,1
-    MOVF    DIVISORH,0
-    ADDWFC  REMAINH,1
-    BCF	    STATUS,C
-    GOTO    DIVIDELOOP
-    
+    CALL    DIVISION	;Call function to do division to get distance from ADC
+			;result
+			
     ;Y=6050/X This is the possible math solution needs to be verified also two byte math :(
     
-    ;MOVF    ADCMATH,0	;Move the result of the math into the Sensors
+    MOVF    DIVIDENDL,0	;Move the result of division into Sensors Registers
     MOVWF   INDF1
     
     RETURN
 ;----ADC CONVERTER END----------------------------------------------------------
     
 ;----Division-------------------------------------------------------------------
-
+DIVISION
+    CLRF    REMAINH	;Clear the remainder and and carry bit before division
+    CLRF    REMAINL	;operation
+    BCF	    STATUS,C	;/
+    
+    MOVLW   D'17'	;17 loops for 16-bit division
+    MOVWF   ADCCOUNT	;/
+    
+DIVIDELOOP
+    RLF	    DIVIDENDL,1	;Rotate the Nominator Left with carry
+    RLF	    DIVIDENDH,1	;/
+    DECFSZ  ADCCOUNT,1	;Decerment Loop Counter	exit if done
+    GOTO    $+2		;Don't Exit Division function
+    RETURN		;Division is done
+    
+    RLF	    REMAINL,1	;Rotate the Remainder Left with carry
+    RLF	    REMAINH,1	;/
+    MOVF    DIVISORL,0	;Subtract Denominator from the remainder
+    SUBWF   REMAINL,1	;///
+    MOVF    DIVISORH,0	;//
+    SUBWFB  REMAINH,1	;/
+    BTFSS   STATUS,C	;Check to see if result was Negative
+    GOTO    $+3		;If result is negative skip 3 lines
+    BSF	    STATUS,C	;Set Carry bit
+    GOTO    DIVIDELOOP	;Restart Loop
+    
+    MOVF    DIVISORL,0	;Add the Denominator back to the remainder
+    ADDWF   REMAINL,1	;///
+    MOVF    DIVISORH,0	;//
+    ADDWFC  REMAINH,1	;/
+    BCF	    STATUS,C	;Clear Carry bit
+    GOTO    DIVIDELOOP	;Restart Division Loop
 ;----Division end---------------------------------------------------------------
     
 ;====MAIN=======================================================================
