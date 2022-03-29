@@ -27,20 +27,22 @@ SENSOR1	EQU 0X20
 SENSOR2	EQU 0X21
 SENSOR3 EQU 0X22
  
-ADCRES	EQU 0X23
-I2CFLAG	EQU 0X24
-IDFLAG	EQU 0X25
-SLVADD  EQU 0X26
-PFLAG   EQU 0X27
-TCOUNT  EQU 0X28
+I2CFLAG	EQU 0X23
+IDFLAG	EQU 0X24
+SLVADD  EQU 0X25
+PFLAG   EQU 0X26
+TCOUNT  EQU 0X27
+  
+ADCRES	EQU 0X28
+ADCMATH	EQU 0X29
  ;====END RAM LOCATIONS=========================================================
  
  ;====MEMORY ORG================================================================
- 	    ORG	    0X00	
-	    GOTO    SETUP	;Setup Vector 0X00
-	    ORG	    0X004	
-	    GOTO    INTERRUPT	;Interrupt Vector 0X04
-	    GOTO    MAINBEGIN	;Main Vector 0X05
+ 	ORG	    0X00	
+	GOTO    SETUP	    ;Setup Vector 0X00
+	ORG	0X004	
+	GOTO    INTERRUPT   ;Interrupt Vector 0X04
+	GOTO    MAINBEGIN   ;Main Vector 0X05
  ;====END MEMORY ORG============================================================
  
  ;====SETUP=====================================================================
@@ -57,65 +59,65 @@ SETUP
 ;--------OSCILLATOR SETUP-------------------------------------------------------
     
 ;------Port Setup---------------------------------------------------------------
-    BANKSEL PORTA
-    CLRF    PORTA
-    CLRF    PORTB
-    CLRF    PORTC
-    BANKSEL TRISA
-    MOVLW   B'00000111'
-    MOVWF   TRISA
-    MOVLW   B'11000000'
-    MOVWF   TRISB
-    CLRF    TRISC
-    BANKSEL ANSELA
-    MOVLW   B'00000111'
-    MOVWF   ANSELA
-    CLRF    ANSELB
-    CLRF    ANSELC
+    BANKSEL PORTA	    ;Set ports to 0
+    CLRF    PORTA	    ;///
+    CLRF    PORTB	    ;//
+    CLRF    PORTC	    ;/
+    BANKSEL TRISA	    ;Set RA0 - RA2 to inputs rest to outputs
+    MOVLW   B'00000111'	    ;//
+    MOVWF   TRISA	    ;/
+    MOVLW   B'11000000'	    ;Set RB6 - RB7 to inputs for I2C
+    MOVWF   TRISB	    ;
+    CLRF    TRISC	    ;Set PortC to be outputs
+    BANKSEL ANSELA	    ;Set RA0 - RA2 as analog inputs
+    MOVLW   B'00000111'	    ;//
+    MOVWF   ANSELA	    ;/
+    CLRF    ANSELB	    ;PortB Digital I/O
+    CLRF    ANSELC	    ;PortC Digital I/O
     
 ;------End of Port Setup--------------------------------------------------------
     
 ;------ALTERNATE PIN SETUP------------------------------------------------------  
-    BANKSEL APFCON1		;SETTING UP ALTERNATE TRANSMIT AND RECEIVE 
-    BCF	    APFCON1,TXSEL	;//// 
-    BCF	    APFCON1,RXSEL	;///
-    BSF	    APFCON1,SCKSEL	;// Changed for the ant board test to port b
-    BSF	    APFCON1,SDISEL	;/
+    BANKSEL APFCON1	    ;SETTING UP ALTERNATE TRANSMIT AND RECEIVE 
+    BCF	    APFCON1,TXSEL   ;//// 
+    BCF	    APFCON1,RXSEL   ;///
+    BSF	    APFCON1,SCKSEL  ;// Changed for the ant board test to port b!!!!!!!!!
+    BSF	    APFCON1,SDISEL  ;/
 ;------ALTERNATE PIN SETUP END--------------------------------------------------
     
 ;------Personal Memory Setup----------------------------------------------------
-    BANKSEL SENSOR1
-    MOVLW   0XFF
-    MOVWF   SENSOR1
-    MOVWF   SENSOR2
-    MOVWF   SENSOR3
-    CLRF    ADCRES
-    CLRF    I2CFLAG
-    CLRF    PFLAG
-    MOVLW   0X01
-    MOVWF   IDFLAG
-    MOVLW   0X20
-    MOVWF   SLVADD
+    BANKSEL SENSOR1	    ;Set default sensor value to 0xFF
+    MOVLW   0XFF	    ;////
+    MOVWF   SENSOR1	    ;///
+    MOVWF   SENSOR2	    ;//
+    MOVWF   SENSOR3	    ;/
+    CLRF    ADCRES	    ;Make sure flags and result are empty to prevent errors
+    CLRF    I2CFLAG	    ;//
+    CLRF    PFLAG	    ;/
+    MOVLW   0X01	    ;Set the ID flag to 0x01
+    MOVWF   IDFLAG	    ;/
+    MOVLW   0X20	    ;Used to set the default address if no address in the
+    MOVWF   SLVADD	    ;EEPROM
 ;------End Personal Memory Setup------------------------------------------------
     
 ;------Indirect Addressing Setup------------------------------------------------
-    BANKSEL FSR0L
-    MOVLW   LOW(SENSOR1)
-    MOVWF   FSR0L
+    BANKSEL FSR0L	    ;Set the indirect addressing to the start location
+    MOVLW   LOW(SENSOR1)    ;//
+    MOVWF   FSR0L	    ;/
 ;------End Indirect Addressing Setup--------------------------------------------
     
 ;------ADC Setup----------------------------------------------------------------
-    BANKSEL ADCON2	        ;SELECT BANK 0 FOR ADCON0
+    BANKSEL ADCON2	    ;SELECT BANK 0 FOR ADCON0
     BCF	    ADCON2,TRIGSEL3 ;TRIGGER DISABLED
     BCF	    ADCON2,TRIGSEL2 ;///
     BCF	    ADCON2,TRIGSEL1 ;//
     BCF	    ADCON2,TRIGSEL0 ;/	
-    BSF	    ADCON2,CHSN3    ;ADC NEGATIVE REFERENCE
+    BSF	    ADCON2,CHSN3    ;ADC NEGATIVE CHANNEL
     BSF	    ADCON2,CHSN2    ;///
     BSF	    ADCON2,CHSN1    ;//
     BSF	    ADCON2,CHSN0    ;/
     
-    BANKSEL	ADCON1		    ;SELECT BANK FOR ADCON1
+    BANKSEL ADCON1	    ;SELECT BANK FOR ADCON1
     BCF	    ADCON1,ADFM	    ;SIGN MAGNITUDE FORMAT	
     BCF	    ADCON1,ADCS2    ;FOSC/32
     BSF	    ADCON1,ADCS1    ;//
@@ -135,127 +137,125 @@ SETUP
     BSF	    ADCON0,ADON	    ;/TURN THE A/D CONVERTOR ON
     
     BANKSEL PIR1
-    BCF	    PIR1,ADIF
+    BCF	    PIR1,ADIF	    ;Clear ADC flag
 ;------End of ADC Setup---------------------------------------------------------
     
 ;------Timer 2 Setup------------------------------------------------------------
-    BANKSEL T2CON
-    BCF	    T2CON,T2OUTPS3
-    BCF	    T2CON,T2OUTPS2
-    BCF	    T2CON,T2OUTPS1
-    BSF	    T2CON,T2OUTPS0
-    BSF	    T2CON,T2CKPS1
-    BCF	    T2CON,T2CKPS0
-    
-    BANKSEL PR2
-    MOVLW   D'250'
-    MOVWF   PR2
+    BANKSEL T2CON	    ;Set Timer 2 to trigger every 1ms
+    BCF	    T2CON,T2OUTPS3  ;/////////
+    BCF	    T2CON,T2OUTPS2  ;////////
+    BCF	    T2CON,T2OUTPS1  ;///////
+    BSF	    T2CON,T2OUTPS0  ;//////
+    BSF	    T2CON,T2CKPS1   ;/////
+    BCF	    T2CON,T2CKPS0   ;////
+    BANKSEL PR2		    ;///
+    MOVLW   D'250'	    ;//
+    MOVWF   PR2		    ;/
 ;------Timer 2 End of Setup-----------------------------------------------------    
     
 ;------I2C SETUP----------------------------------------------------------------
-    ;Slave Address needs to be verified to make sure that it working correctly
-    BANKSEL EEADRL
-    MOVLW   0X01
-    MOVWF   EEADRL
-    BCF	    EECON1,CFGS
-    BCF	    EECON1,EEPGD
-    BSF	    EECON1,RD
-    MOVLW   0X55
-    SUBWF   EEDATL,0
-    BTFSS   STATUS,Z        
-    CALL    STARTADD         ;Grabs Slave Address that was saved in EEPROM
+    BANKSEL EEADRL	    
+    MOVLW   0X01	    ;Read the data location 0x01 to determine if the PIC
+    MOVWF   EEADRL	    ;has been powered on before to prevent writing the
+    BCF	    EECON1,CFGS	    ;default address every time
+    BCF	    EECON1,EEPGD    ;/////
+    BSF	    EECON1,RD	    ;////
+    MOVLW   0X55	    ;///
+    SUBWF   EEDATL,0	    ;//
+    BTFSS   STATUS,Z	    ;/
+    CALL    STARTADD        ;Write the default address to EEPROM if no data
 
-    BANKSEL EEADRL
-    MOVLW   0X00
-    MOVWF   EEADRL
-    BCF	    EECON1,CFGS
-    BCF	    EECON1,EEPGD
-    BSF	    EECON1,RD
-    LSLF    EEDATL,0
-    BANKSEL SSPADD
-    MOVWF   SSPADD		;SLAVE MODE ADDRESS
+    BANKSEL EEADRL	    
+    MOVLW   0X00	    ;Read the Slave address from the EEPROM
+    MOVWF   EEADRL	    ;////
+    BCF	    EECON1,CFGS	    ;///
+    BCF	    EECON1,EEPGD    ;//
+    BSF	    EECON1,RD	    ;/
+    LSLF    EEDATL,0	    ;Slave address is left shifted to be in the right spot
+    BANKSEL SSPADD	    
+    MOVWF   SSPADD	    ;SLAVE MODE ADDRESS
     
     BANKSEL SSPCON1
-    BCF	    SSPCON1, SSPM3	; 0110 I2C Slave Mode
-    BSF	    SSPCON1, SSPM2	;--/
-    BSF	    SSPCON1, SSPM1	;-/
-    BCF	    SSPCON1, SSPM0	;/
-    BSF	    SSPCON1, SSPEN	;ENABLE SERIAL PORT FOR I2C
-    BSF	    SSPCON1, CKP	;Enable Clock
+    BCF	    SSPCON1, SSPM3  ; 0110 I2C Slave Mode
+    BSF	    SSPCON1, SSPM2  ;///
+    BSF	    SSPCON1, SSPM1  ;//
+    BCF	    SSPCON1, SSPM0  ;/
+    BSF	    SSPCON1, SSPEN  ;ENABLE SERIAL PORT FOR I2C
+    BSF	    SSPCON1, CKP    ;Enable Clock
     
     
     BANKSEL SSPCON2
-    BCF	    SSPCON2, GCEN	;GENERAL CALL DISABLE BIT
-    BCF	    SSPCON2,SEN		;Disable Clock streching
+    BCF	    SSPCON2,GCEN    ;GENERAL CALL DISABLE BIT
+    BCF	    SSPCON2,SEN	    ;Disable Clock streching
     
     BANKSEL SSPCON3
-    BCF	    SSPCON3,PCIE
-    BCF	    SSPCON3,SCIE
-    BSF	    SSPCON3,BOEN
-    BCF	    SSPCON3,AHEN
-    BCF	    SSPCON3,DHEN
+    BCF	    SSPCON3,PCIE    ;Disable stop condition interrupt
+    BCF	    SSPCON3,SCIE    ;Disable start condition interrupt
+    BSF	    SSPCON3,BOEN    ;Ignore the state of SSPOV to always !ACK
+    BCF	    SSPCON3,AHEN    ;Address holding disabled
+    BCF	    SSPCON3,DHEN    ;Data holding disabled
 
     BANKSEL SSPSTAT
-    BCF	    SSPSTAT,SMP		;SET SLEW RATE TO 100K FOR I2C
-    BSF	    SSPSTAT,CKE		;ENABLE SMBUS SPECIFIC INPUTS
+    BCF	    SSPSTAT,SMP	    ;SET SLEW RATE TO 400K FOR I2C
+    BSF	    SSPSTAT,CKE	    ;ENABLE SMBUS SPECIFIC INPUTS
 
 ;------END I2C SETUP------------------------------------------------------------
     
 ;------PIE1 REGISTER------------------------------------------------------------					
-    BANKSEL PIE1		;Select Bank 1
-    BSF	    PIE1,ADIE		;Enable ADC Interrupt
-    BSF	    PIE1,SSP1IE		;(MSSP) Interrupt Disable
-    BSF	    PIE1,TMR2IE		;Enable Timer 2 interrupt
+    BANKSEL PIE1	    ;Select Bank 1
+    BSF	    PIE1,ADIE	    ;Enable ADC Interrupt
+    BSF	    PIE1,SSP1IE	    ;(MSSP) Interrupt Disable
+    BSF	    PIE1,TMR2IE	    ;Enable Timer 2 interrupt
 ;------END PIE1 REGISTER--------------------------------------------------------
     BANKSEL PIR1
-    BCF	    PIR1,SSP1IF		;Clear(MSSP) Interrupt Flag	
-    BCF	    PIR1,TMR2IF		;Clear Timer2 Interrupt Flag
+    BCF	    PIR1,SSP1IF	    ;Clear(MSSP) Interrupt Flag	
+    BCF	    PIR1,TMR2IF	    ;Clear Timer2 Interrupt Flag
     
     BANKSEL T2CON
-    BSF	    T2CON,TMR2ON	;Start Timer2
-    BSF	    INTCON,PEIE		;Enable peripheral interrupts
-    BSF	    INTCON,GIE		;Enable Global interrupts
+    BSF	    T2CON,TMR2ON    ;Start Timer2
+    BSF	    INTCON,PEIE	    ;Enable peripheral interrupts
+    BSF	    INTCON,GIE	    ;Enable Global interrupts
     GOTO    MAINBEGIN
 
 STARTADD
 BANKSEL	    EEADRL      
-    MOVLW   0X01        ;Slave address is placed in EEPROM address 0x00
-    MOVWF   EEADRL
-    MOVLW   0X55        ;Move Start code to EEPROM 0x01
-    BANKSEL EEDATL      ;//
-    MOVWF   EEDATL      ;/
-    BCF     EECON1,CFGS ;Deselect configuration space
-    BCF     EECON1,EEPGD;Point to Data Memory
-    BSF     EECON1,WREN ;Enable Write
+    MOVLW   0X01	    ;First Start data is place in EEPROM address 0x01
+    MOVWF   EEADRL	    ;/
+    MOVLW   0X55	    ;Move Start code to EEPROM 0x01
+    BANKSEL EEDATL	    ;//
+    MOVWF   EEDATL	    ;/
+    BCF     EECON1,CFGS	    ;Deselect configuration space
+    BCF     EECON1,EEPGD    ;Point to Data Memory
+    BSF     EECON1,WREN	    ;Enable Write
 
-    MOVLW   0X55        ;Charge Pump
-    MOVWF   EECON2      ;///
-    MOVLW   0XAA        ;//
-    MOVWF   EECON2      ;/
-    BSF     EECON1,WR   ;Write the value into the address
+    MOVLW   0X55	    ;Charge Pump
+    MOVWF   EECON2	    ;///
+    MOVLW   0XAA	    ;//
+    MOVWF   EECON2	    ;/
+    BSF     EECON1,WR	    ;Write the value into the address
 
-    BCF     EECON1,WREN ;Disable Write
-    BTFSC   EECON1,WR   ;Wait until write is finished
-    GOTO    $-2         ;/
+    BCF     EECON1,WREN	    ;Disable Write
+    BTFSC   EECON1,WR	    ;Wait until write is finished
+    GOTO    $-2		    ;/
 
     BANKSEL EEADRL      
-    MOVLW   0X00        ;Slave address is placed in EEPROM address 0x00
+    MOVLW   0X00	    ;Slave address is placed in EEPROM address 0x00
     MOVWF   EEADRL
-    MOVLW   0x10        ;Move slave address that is to be saved into EEDAT
-    MOVWF   EEDATL      ;/
-    BCF     EECON1,CFGS ;Deselect configuration space
-    BCF     EECON1,EEPGD;Point to Data Memory
-    BSF     EECON1,WREN ;Enable Write
+    MOVLW   0x10	    ;Move slave address that is to be saved into EEDAT
+    MOVWF   EEDATL	    ;/
+    BCF     EECON1,CFGS	    ;Deselect configuration space
+    BCF     EECON1,EEPGD    ;Point to Data Memory
+    BSF     EECON1,WREN	    ;Enable Write
 
-    MOVLW   0X55        ;Charge Pump
-    MOVWF   EECON2      ;///
-    MOVLW   0XAA        ;//
-    MOVWF   EECON2      ;/
-    BSF     EECON1,WR   ;Write the value into the address
+    MOVLW   0X55	    ;Charge Pump
+    MOVWF   EECON2	    ;///
+    MOVLW   0XAA	    ;//
+    MOVWF   EECON2	    ;/
+    BSF     EECON1,WR	    ;Write the value into the address
 
-    BCF     EECON1,WREN ;Disable Write
-    BTFSC   EECON1,WR   ;Wait until write is finished
-    GOTO    $-2         ;/
+    BCF     EECON1,WREN	    ;Disable Write
+    BTFSC   EECON1,WR	    ;Wait until write is finished
+    GOTO    $-2		    ;/
     RETURN
       
 ;======End of Setup=============================================================    
@@ -263,22 +263,21 @@ BANKSEL	    EEADRL
 ;=====INTERRUPT=================================================================
 
 INTERRUPT
+    BANKSEL PIR1	    ;Shadow registers handle Working save and Status save
+    BTFSC   PIR1,SSP1IF	    ;Test SSP interrupt for I2C
+    CALL    I2CHANDLER	    ;Handle I2C interrupt
+    BTFSC   PIR1,ADIF	    ;Test ADC interrupt
+    CALL    ADCHANDLER	    ;Handle ADC interrupt
+    BTFSC   PIR1,TMR2IF	    ;Test Timer 2 interrupt
+    CALL    T2HANDLER	    ;Handle Timer2 interrupt
     
-    BANKSEL PIR1
-    BTFSC   PIR1,SSP1IF
-    CALL    I2CHANDLER
-    BTFSC   PIR1,ADIF
-    CALL    ADCHANDLER
-    BTFSC   PIR1,TMR2IF
-    CALL    T2HANDLER
-    
-    RETFIE
+    RETFIE		    ;Return from interrupt
     
 ;=====END INTERRUPT=============================================================
     
 ;======I2C HANDLER==============================================================
 I2CHANDLER		
-    BCF	    PIR1,SSP1IF		;Clear MSSP Flag
+    BCF	    PIR1,SSP1IF	    ;Clear MSSP Flag
     
     BANKSEL SSPSTAT         
     BTFSS   SSPSTAT,D_NOT_A ;Check to see if recieved byte was data or address
@@ -286,16 +285,16 @@ I2CHANDLER
     
     BTFSS   SSPSTAT,R_NOT_W ;Check to see if a write or a read is requested
     GOTO    WRITE           ;Go to a sub that handles writes
-              
+			    ;A read will be handled by the Raddress sub
 RADDRESS                    ;Clear SSPBUF to prevent an overwrite error
-    BANKSEL SSPBUF
-    MOVF    SSPBUF,0
-    
+    BANKSEL SSPBUF	    ;//
+    MOVF    SSPBUF,0	    ;/
+			    
     BANKSEL I2CFLAG
     BTFSC   I2CFLAG,0	    ;Check to see if sensor data was called for
     GOTO    READSENSOR	    ;Goto a code that will send the sensor data
     BTFSC   I2CFLAG,2	    ;Check to see if the ID is wanted
-    GOTO    READID	        ;Goto the code that sends the ID TAG
+    GOTO    READID	    ;Goto the code that sends the ID TAG
     RETURN
     
 
@@ -311,13 +310,13 @@ WRITE
     GOTO    I2CTABLE        ;jump in the table.
     
 
-NEWADD	;ADD CODE TO SET SLAVE ADDRESS TO RECIEVED BYTE
-    BCF     I2CFLAG,1   ;Clear the flag that called the sub
+NEWADD			
+    BCF     I2CFLAG,1	    ;Clear the flag that called the sub
     BANKSEL SSPBUF      
-    MOVF    SSPBUF,0    ;Set Slave address to recieved Byte
-    BANKSEL SLVADD      ;//
-    MOVWF   SLVADD      ;/
-    BSF     PFLAG,0     ;Set a personal flag to run sub in main
+    MOVF    SSPBUF,0	    ;Set Slave address to recieved Byte
+    BANKSEL SLVADD	    ;//
+    MOVWF   SLVADD	    ;/
+    BSF     PFLAG,0	    ;Set a personal flag to run sub in main
     RETURN
 
 ;-----Write End---------------------------------------------------------------
@@ -325,105 +324,105 @@ NEWADD	;ADD CODE TO SET SLAVE ADDRESS TO RECIEVED BYTE
 ;------READ SENSORS------------------------------------------------------------- I think clock release still needs to be added after data is loaded
 READSENSOR
     BANKSEL SSPBUF
-    MOVF    INDF0,0     ;Move the data of the selected sensor into the SSPBUF
-    MOVWF   SSPBUF      ;/
-    BSF     SSPCON1,CKP ;Release SCL allowing for the data to be clocked out
+    MOVF    INDF0,0	    ;Move the data of the selected sensor into the SSPBUF
+    MOVWF   SSPBUF	    ;/
+    BSF     SSPCON1,CKP	    ;Release SCL allowing for the data to be clocked out
     BANKSEL FSR0L_SHAD
-    INCF    FSR0L_SHAD,1;Increament to the next sensor to be read
+    INCF    FSR0L_SHAD,1    ;Increament to the next sensor to be read
     RETURN
     
 ;------END READ SENSORS---------------------------------------------------------   
     
-;------READID------------------------------------------------------------------- I think clock release still needs to be added after data is loaded
+;------READID-------------------------------------------------------------------
 READID
-    BANKSEL IDFLAG
-    BTFSC   IDFLAG,0
-    GOTO    SENDI
-    BTFSC   IDFLAG,1
-    GOTO    SENDN
-    BTFSC   IDFLAG,2
-    GOTO    SENDF
-    BTFSC   IDFLAG,3
-    GOTO    SENDNUM
+    BANKSEL IDFLAG	
+    BTFSC   IDFLAG,0	    ;Test if the I needs to be sent
+    GOTO    SENDI	    ;Send I
+    BTFSC   IDFLAG,1	    ;Test if the N needs to be sent
+    GOTO    SENDN	    ;Send N
+    BTFSC   IDFLAG,2	    ;Test if the F needs to be sent
+    GOTO    SENDF	    ;Send F
+    BTFSC   IDFLAG,3	    ;Test if the number of sensors needs to be sent
+    GOTO    SENDNUM	    ;Send the numbers of sensor attached
     
 SENDI			    ;Send the first letter of the Identification
-    BANKSEL SSPBUF
-    MOVLW   ID1
-    MOVWF   SSPBUF
-    BSF     SSPCON1,CKP
-    BANKSEL IDFLAG
-    LSLF    IDFLAG,1
+    BANKSEL SSPBUF	    
+    MOVLW   ID1		    ;Move I into SSPBUF
+    MOVWF   SSPBUF	    ;/
+    BSF     SSPCON1,CKP	    ;Release Master Clock to finish read
+    BANKSEL IDFLAG	    
+    LSLF    IDFLAG,1	    ;Raise flag to send next piece of data
     RETURN
     
 SENDN			    ;Send the second letter if the Identification
-    BANKSEL SSPBUF
-    MOVLW   ID2
-    MOVWF   SSPBUF
-    BSF     SSPCON1,CKP
+    BANKSEL SSPBUF	    
+    MOVLW   ID2		    ;Move N into SSPBUF
+    MOVWF   SSPBUF	    ;/
+    BSF     SSPCON1,CKP	    ;Release Master Clock to finish read
     BANKSEL IDFLAG
-    LSLF    IDFLAG,1
+    LSLF    IDFLAG,1	    ;Raise flag to send next piece of data
     RETURN
     
 SENDF			    ;This is a really good comment
-    BANKSEL SSPBUF
-    MOVLW   ID3
-    MOVWF   SSPBUF
-    BSF     SSPCON1,CKP
+    BANKSEL SSPBUF	
+    MOVLW   ID3		    ;Send the third letter of the identification
+    MOVWF   SSPBUF	    ;/
+    BSF     SSPCON1,CKP	    ;Release Master Clock to finish read
     BANKSEL IDFLAG
-    LSLF    IDFLAG,1
+    LSLF    IDFLAG,1	    ;Raise flag to send next piece of data
     RETURN
     
 SENDNUM
     BANKSEL SSPBUF
-    MOVLW   ID4
-    MOVWF   SSPBUF
-    BSF     SSPCON1,CKP
+    MOVLW   ID4		    ;Send the number of sensors
+    MOVWF   SSPBUF	    ;/
+    BSF     SSPCON1,CKP	    ;Release Master Clock to finish read
     BANKSEL IDFLAG
-    MOVLW   0X01
+    MOVLW   0X01	    ;Reset the flag back the star of the ID
     MOVWF   IDFLAG
     RETURN  
 ;------END IDREAD---------------------------------------------------------------
     
 READCALL
-    BANKSEL I2CFLAG
-    BSF	    I2CFLAG,0
-    BANKSEL FSR0L_SHAD
-    MOVLW   LOW(SENSOR1)
-    MOVWF   FSR0L_SHAD
+    BANKSEL I2CFLAG	    
+    BSF	    I2CFLAG,0	    ;Set flag that the Sensors data is wanted
+    BANKSEL FSR0L_SHAD	    
+    MOVLW   LOW(SENSOR1)    ;Set the indirect addressing to the first sensor
+    MOVWF   FSR0L_SHAD	    ;/
     RETURN
 ADDCALL
-    BANKSEL I2CFLAG
-    BSF	    I2CFLAG,1
+    BANKSEL I2CFLAG	    
+    BSF	    I2CFLAG,1	    ;Set a flag that the Slave Address is to be changed
     RETURN
 IDCALL
     BANKSEL I2CFLAG
-    BSF	    I2CFLAG,2
+    BSF	    I2CFLAG,2	    ;Set a flag that the ID of the board is needed
     RETURN
 
 ;======I2C HANDLER END==========================================================
 
 ;======ADC HANDLER==============================================================
 ADCHANDLER
-    BCF     PIR1,ADIF   ;Clear ADC Flag
+    BCF     PIR1,ADIF	    ;Clear ADC Flag
     BANKSEL ADRESH      
-    MOVF    ADRESH,0    ;Grab 8 MSBs of ADC result
+    MOVF    ADRESH,0	    ;Grab 8 MSBs of ADC result
     BANKSEL ADCRES      
-    MOVWF   ADCRES      ;Save ADC result
+    MOVWF   ADCRES	    ;Save ADC result
     BANKSEL ADCON0
-    MOVLW   0X04        ;Increment Analog Channel
-    ADDWF   ADCON0,1    ;/
-    MOVLW   0X7C        ;Mask off the Analog channel select in ADCON0
-    ANDWF   ADCON0,0    ;/
-    SUBLW   0X0C        ;Check to see if AN3 is selected
-    BTFSC   STATUS,Z    ;/
-    CALL    RESETADC    ;If AN3 is selected run sub to select AN0
+    MOVLW   0X04	    ;Increment Analog Channel
+    ADDWF   ADCON0,1	    ;/
+    MOVLW   0X7C	    ;Mask off the Analog channel select in ADCON0
+    ANDWF   ADCON0,0	    ;/
+    SUBLW   0X0C	    ;Check to see if AN3 is selected
+    BTFSC   STATUS,Z	    ;/
+    CALL    RESETADC	    ;If AN3 is selected run sub to select AN0
     BANKSEL PFLAG
-    BSF     PFLAG,1
+    BSF     PFLAG,1	    ;Set a flag to handle the ADC in main
     RETURN
 
 RESETADC
-    BCF     ADCON0,CHS0 ;Select analog channel 0
-    BCF     ADCON0,CHS1 ;/ 
+    BCF     ADCON0,CHS0	    ;Select analog channel 0
+    BCF     ADCON0,CHS1	    ;/ 
     RETURN
 ;======ADC HANDLER END==========================================================
 
@@ -506,10 +505,12 @@ WRITEADD
 
 ;----ADC CONVERTER-------------------------------------------------------------
 ADCCONVERT
-    BCF	    PFLAG,1
-    BANKSEL ADCRES
-    MOVF    ADCRES,0
-    MOVWF   PORTB
+    BCF	    PFLAG,1	;Clear ADC flag
+    
+    ;Y=6050/(1/X) This is the possible math solution needs to be verified also two byte math :(
+    
+    MOVF    ADCMATH,0	;Move the result of the math into the Sensors
+    MOVWF   INDF1
     
     RETURN
 ;----ADC CONVERTER END---------------------------------------------------------
@@ -522,7 +523,7 @@ MAINBEGIN
     BANKSEL PFLAG
     BTFSC   PFLAG,1
     CALL    ADCCONVERT
-
+    CALL    DIV16U
     GOTO    MAINBEGIN
     
     
@@ -530,12 +531,12 @@ MAINBEGIN
     
     ORG 0X300   
 I2CTABLE
-    ADDWF   PCL,1
-    GOTO    READCALL;Tells the PIC that the sensors data is wanted
+    ADDWF   PCL,1	    ;Do calculated jump to raise I2C flag 
+    GOTO    READCALL	    ;Tells the PIC that the sensors data is wanted
     ORG 0X323
-    GOTO    ADDCALL	;Tells the PIC that the slave address will change
+    GOTO    ADDCALL	    ;Tells the PIC that the slave address will change
     ORG 0X33D
-    GOTO    IDCALL	;Tells the PIC that the ID will be read
+    GOTO    IDCALL	    ;Tells the PIC that the ID will be read
     END
     
 ;====MAIN END===================================================================
