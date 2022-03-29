@@ -23,18 +23,25 @@ ID4	EQU D'3'    ;Set the number of sensors connected to the device
 ;=====END CONSTANTS=============================================================
  
  ;====RAM LOCATIONS=============================================================
-SENSOR1	EQU 0X20
-SENSOR2	EQU 0X21
-SENSOR3 EQU 0X22
+SENSOR1	    EQU 0X20
+SENSOR2	    EQU 0X21
+SENSOR3	    EQU 0X22
  
-I2CFLAG	EQU 0X23
-IDFLAG	EQU 0X24
-SLVADD  EQU 0X25
-PFLAG   EQU 0X26
-TCOUNT  EQU 0X27
+I2CFLAG	    EQU 0X23
+IDFLAG	    EQU 0X24
+SLVADD	    EQU 0X25
+PFLAG	    EQU 0X26
+TCOUNT	    EQU 0X27
   
-ADCRES	EQU 0X28
-ADCMATH	EQU 0X29
+ADCRESL	    EQU 0X28
+ADCRESH	    EQU 0X29
+DIVIDENDL   EQU 0X2A
+DIVIDENDH   EQU 0X2B
+DIVISORL    EQU 0X2C
+DIVISORH    EQU	0X2D
+REMAINH	    EQU 0X2E
+REMAINL	    EQU 0X2F
+ADCCOUNT    EQU	0X30
  ;====END RAM LOCATIONS=========================================================
  
  ;====MEMORY ORG================================================================
@@ -91,7 +98,7 @@ SETUP
     MOVWF   SENSOR1	    ;///
     MOVWF   SENSOR2	    ;//
     MOVWF   SENSOR3	    ;/
-    CLRF    ADCRES	    ;Make sure flags and result are empty to prevent errors
+    CLRF    ADCRESH	    ;Make sure flags and result are empty to prevent errors
     CLRF    I2CFLAG	    ;//
     CLRF    PFLAG	    ;/
     MOVLW   0X01	    ;Set the ID flag to 0x01
@@ -406,8 +413,13 @@ ADCHANDLER
     BCF     PIR1,ADIF	    ;Clear ADC Flag
     BANKSEL ADRESH      
     MOVF    ADRESH,0	    ;Grab 8 MSBs of ADC result
-    BANKSEL ADCRES      
-    MOVWF   ADCRES	    ;Save ADC result
+    BANKSEL ADCRESH      
+    MOVWF   ADCRESH	    ;Save ADC Result high byte
+    BANKSEL ADRESL
+    MOVLW   B'11000000'	    ;Mask off the signed bit on ADC ResultL
+    ANDWF   ADRESL,0	    ;/
+    BANKSEL ADCRESL	    
+    MOVWF   ADCRESL	    ;Save ADC Result low byte
     BANKSEL ADCON0
     MOVLW   0X04	    ;Increment Analog Channel
     ADDWF   ADCON0,1	    ;/
@@ -501,21 +513,74 @@ WRITEADD
     BANKSEL SSPADD      ;//
     MOVWF   SSPADD      ;/
     RETURN
-;----WRITE ADDRESS END---------------------------------------------------------
+;----WRITE ADDRESS END----------------------------------------------------------
 
-;----ADC CONVERTER-------------------------------------------------------------
+;----ADC CONVERTER--------------------------------------------------------------
 ADCCONVERT
     BCF	    PFLAG,1	;Clear ADC flag
+    MOVLW   D'6'
+    MOVWF   ADCCOUNT
+RJUSTIFY
+    LSRF    ADCRESH,1
+    RRF	    ADCRESL,1
+    DECFSZ  ADCCOUNT
+    GOTO    RJUSTIFY
     
-    ;Y=6050/(1/X) This is the possible math solution needs to be verified also two byte math :(
+    MOVF    ADCRESH,0
+    MOVWF   DIVISORH
+    MOVF    ADCRESL,0
+    MOVWF   DIVISORL
     
-    MOVF    ADCMATH,0	;Move the result of the math into the Sensors
+    MOVLW   0X17	;DEGUGGING
+    MOVWF   DIVIDENDH	;///
+    MOVLW   0XA2	;//
+    MOVWF   DIVIDENDL	;/
+    
+    
+    
+    CLRF    REMAINH
+    CLRF    REMAINL
+    BCF	    STATUS,C
+    
+    MOVLW   D'17'
+    MOVWF   ADCCOUNT
+    
+DIVIDELOOP
+    RLF	    DIVIDENDL,1
+    RLF	    DIVIDENDH,1
+    DECFSZ  ADCCOUNT,1
+    GOTO    $+2
+    RETURN
+    RLF	    REMAINL,1
+    RLF	    REMAINH,1
+    MOVF    DIVISORL,0
+    SUBWF   REMAINL,1
+    MOVF    DIVISORH,0
+    SUBWFB  REMAINH,1
+    BTFSS   STATUS,C
+    GOTO    $+3
+    BSF	    STATUS,C
+    GOTO    DIVIDELOOP
+    MOVF    DIVISORL,0
+    ADDWF   REMAINL,1
+    MOVF    DIVISORH,0
+    ADDWFC  REMAINH,1
+    BCF	    STATUS,C
+    GOTO    DIVIDELOOP
+    
+    ;Y=6050/X This is the possible math solution needs to be verified also two byte math :(
+    
+    ;MOVF    ADCMATH,0	;Move the result of the math into the Sensors
     MOVWF   INDF1
     
     RETURN
-;----ADC CONVERTER END---------------------------------------------------------
+;----ADC CONVERTER END----------------------------------------------------------
     
-;====MAIN======================================================================
+;----Division-------------------------------------------------------------------
+
+;----Division end---------------------------------------------------------------
+    
+;====MAIN=======================================================================
 MAINBEGIN
     BANKSEL PFLAG
     BTFSC   PFLAG,0
@@ -523,7 +588,6 @@ MAINBEGIN
     BANKSEL PFLAG
     BTFSC   PFLAG,1
     CALL    ADCCONVERT
-    CALL    DIV16U
     GOTO    MAINBEGIN
     
     
