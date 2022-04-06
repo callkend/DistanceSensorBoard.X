@@ -5,11 +5,13 @@
                    displayName="Header Files"
                    projectFiles="true">
       <itemPath>../../../../Program Files (x86)/Microchip/MPLABX/v5.30/mpasmx/p16f1788.inc</itemPath>
+      <itemPath>../../../../Program Files (x86)/Microchip/MPLABX/v5.30/mpasmx/p16lf1778.inc</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
                    projectFiles="true">
       <itemPath>../../../../Program Files (x86)/Microchip/MPLABX/v5.30/mpasmx/LKR/16f1788_g.lkr</itemPath>
+      <itemPath>../../../../Program Files (x86)/Microchip/MPLABX/v5.30/mpasmx/LKR/16lf1788_g.lkr</itemPath>
     </logicalFolder>
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
@@ -30,7 +32,7 @@
     <conf name="default" type="2">
       <toolsSet>
         <developmentServer>localhost</developmentServer>
-        <targetDevice>PIC16F1788</targetDevice>
+        <targetDevice>PIC16LF1788</targetDevice>
         <targetHeader></targetHeader>
         <targetPluginBoard></targetPluginBoard>
         <platformTool>PICkit3PlatformTool</platformTool>

@@ -90,7 +90,7 @@ ifneq ($(INFORMATION_MESSAGE), )
 endif
 	${MAKE}  -f nbproject/Makefile-default.mk dist/${CND_CONF}/${IMAGE_TYPE}/DistanceSensorBoard.X.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
 
-MP_PROCESSOR_OPTION=16f1788
+MP_PROCESSOR_OPTION=16lf1788
 MP_LINKER_DEBUG_OPTION= 
 # ------------------------------------------------------------------------------------
 # Rules for buildStep: assemble
@@ -138,3 +138,11 @@ endif
 .clean-conf: ${CLEAN_SUBPROJECTS}
 	${RM} -r build/default
 	${RM} -r dist/default
+
+# Enable dependency checking
+.dep.inc: .depcheck-impl
+
+DEPFILES=$(shell mplabwildcard ${POSSIBLE_DEPFILES})
+ifneq (${DEPFILES},)
+include ${DEPFILES}
+endif
