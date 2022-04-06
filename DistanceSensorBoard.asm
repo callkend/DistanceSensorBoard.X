@@ -1,17 +1,17 @@
 ;====Kendall Callister I2C Sensor==========================================
 
-    LIST  P=16F1788
+    LIST  P=16LF1788
 
 ;====PIC CONFIG=================================================================
     
-    #include "p16f1788.inc"
+    #include "p16lf1788.inc"
 
 ; CONFIG1
 ; __config 0xC9E4
  __CONFIG _CONFIG1, _FOSC_INTOSC & _WDTE_OFF & _PWRTE_OFF & _MCLRE_ON & _CP_OFF & _CPD_OFF & _BOREN_OFF & _CLKOUTEN_OFF & _IESO_OFF & _FCMEN_OFF
 ; CONFIG2
 ; __config 0xDEFF
- __CONFIG _CONFIG2, _WRT_OFF & _VCAPEN_OFF & _PLLEN_OFF & _STVREN_ON & _BORV_LO & _LPBOR_OFF & _LVP_OFF
+ __CONFIG _CONFIG2, _WRT_OFF & _PLLEN_OFF & _STVREN_ON & _BORV_LO & _LPBOR_OFF & _LVP_OFF
 
  ;====END PIC CONFIG============================================================
  
@@ -73,9 +73,9 @@ SETUP
     BANKSEL TRISA	    ;Set RA0 - RA2 to inputs rest to outputs
     MOVLW   B'00000111'	    ;//
     MOVWF   TRISA	    ;/
-    MOVLW   B'11000000'	    ;Set RB6 - RB7 to inputs for I2C
-    MOVWF   TRISB	    ;
-    CLRF    TRISC	    ;Set PortC to be outputs
+    MOVLW   B'00011000'	    ;Set RB6 - RB7 to inputs for I2C
+    MOVWF   TRISC	    ;
+    CLRF    TRISB	    ;Set PortC to be outputs
     BANKSEL ANSELA	    ;Set RA0 - RA2 as analog inputs
     MOVLW   B'00000111'	    ;//
     MOVWF   ANSELA	    ;/
@@ -88,8 +88,8 @@ SETUP
     BANKSEL APFCON1	    ;SETTING UP ALTERNATE TRANSMIT AND RECEIVE 
     BCF	    APFCON1,TXSEL   ;//// 
     BCF	    APFCON1,RXSEL   ;///
-    BSF	    APFCON1,SCKSEL  ;// Changed for the ant board test to port b!!!!!!!!!
-    BSF	    APFCON1,SDISEL  ;/
+    BCF	    APFCON1,SCKSEL  ;// Changed for the ant board test to port b!!!!!!!!!
+    BCF	    APFCON1,SDISEL  ;/
 ;------ALTERNATE PIN SETUP END--------------------------------------------------
     
 ;------Personal Memory Setup----------------------------------------------------
@@ -190,7 +190,6 @@ SETUP
     BSF	    SSPCON1, SSPEN  ;ENABLE SERIAL PORT FOR I2C
     BSF	    SSPCON1, CKP    ;Enable Clock
     
-    
     BANKSEL SSPCON2
     BCF	    SSPCON2,GCEN    ;GENERAL CALL DISABLE BIT
     BCF	    SSPCON2,SEN	    ;Disable Clock streching
@@ -204,7 +203,7 @@ SETUP
 
     BANKSEL SSPSTAT
     BCF	    SSPSTAT,SMP	    ;SET SLEW RATE TO 400K FOR I2C
-    BSF	    SSPSTAT,CKE	    ;ENABLE SMBUS SPECIFIC INPUTS
+    BCF	    SSPSTAT,CKE	    ;ENABLE SMBUS SPECIFIC INPUTS
 
 ;------END I2C SETUP------------------------------------------------------------
     
@@ -537,10 +536,7 @@ RJUSTIFY		;/////
     MOVWF   DIVIDENDL	;/
     
     CALL    DIVISION	;Call function to do division to get distance from ADC
-			;result
-			
-    ;Y=6050/X This is the possible math solution needs to be verified also two byte math :(
-    
+			;result    
     MOVF    DIVIDENDL,0	;Move the result of division into Sensors Registers
     MOVWF   INDF1
     
@@ -584,17 +580,16 @@ DIVIDELOOP
     
 ;====MAIN=======================================================================
 MAINBEGIN
+    BANKSEL PFLAG	    
+    BTFSC   PFLAG,0	    ;Test to see if a new slave address was set
+    CALL    WRITEADD	    ;Write new slave address to EEPROM
     BANKSEL PFLAG
-    BTFSC   PFLAG,0
-    CALL    WRITEADD
-    BANKSEL PFLAG
-    BTFSC   PFLAG,1
-    CALL    ADCCONVERT
+    BTFSC   PFLAG,1	    ;Test to see if ADC result needs to be handled
+    CALL    ADCCONVERT	    ;Format ADC result and place result in correct register
     GOTO    MAINBEGIN
     
-    
-    
-    
+
+;Table used to know what is being requested by the Master Board
     ORG 0X300   
 I2CTABLE
     ADDWF   PCL,1	    ;Do calculated jump to raise I2C flag 
