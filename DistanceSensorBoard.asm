@@ -598,7 +598,7 @@ I2CTABLE
     GOTO    ADDCALL	    ;Tells the PIC that the slave address will change
     ORG 0X33D
     GOTO    IDCALL	    ;Tells the PIC that the ID will be read
-    END
+    END                 ;END
     
 ;====MAIN END===================================================================
     
