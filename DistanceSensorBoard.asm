@@ -8,7 +8,7 @@
 
 ; CONFIG1
 ; __config 0xC9E4
- __CONFIG _CONFIG1, _FOSC_INTOSC & _WDTE_OFF & _PWRTE_OFF & _MCLRE_ON & _CP_OFF & _CPD_OFF & _BOREN_OFF & _CLKOUTEN_OFF & _IESO_OFF & _FCMEN_OFF
+ __CONFIG _CONFIG1, _FOSC_INTOSC & _WDTE_OFF & _PWRTE_OFF & _MCLRE_ON & _CP_OFF & _CPD_OFF & _BOREN_ON & _CLKOUTEN_OFF & _IESO_OFF & _FCMEN_OFF
 ; CONFIG2
 ; __config 0xDEFF
  __CONFIG _CONFIG2, _WRT_OFF & _PLLEN_OFF & _STVREN_ON & _BORV_LO & _LPBOR_OFF & _LVP_OFF
@@ -315,7 +315,6 @@ WRITE
     MOVF    SSPBUF,0        ;The recieved data will be used to make a calcultated
     GOTO    I2CTABLE        ;jump in the table.
     
-
 NEWADD			
     BCF     I2CFLAG,1	    ;Clear the flag that called the sub
     BANKSEL SSPBUF      
@@ -335,8 +334,7 @@ READSENSOR
     BSF     SSPCON1,CKP	    ;Release SCL allowing for the data to be clocked out
     BANKSEL FSR0L_SHAD
     INCF    FSR0L_SHAD,1    ;Increament to the next sensor to be read
-    RETURN
-    
+    RETURN 
 ;------END READ SENSORS---------------------------------------------------------   
     
 ;------READID-------------------------------------------------------------------
@@ -350,6 +348,7 @@ READID
     GOTO    SENDF	    ;Send F
     BTFSC   IDFLAG,3	    ;Test if the number of sensors needs to be sent
     GOTO    SENDNUM	    ;Send the numbers of sensor attached
+    RETURN
     
 SENDI			    ;Send the first letter of the Identification
     BANKSEL SSPBUF	    
@@ -396,15 +395,16 @@ READCALL
     MOVLW   LOW(SENSOR1)    ;Set the indirect addressing to the first sensor
     MOVWF   FSR0L_SHAD	    ;/
     RETURN
+    
 ADDCALL
     BANKSEL I2CFLAG	    
     BSF	    I2CFLAG,1	    ;Set a flag that the Slave Address is to be changed
     RETURN
+    
 IDCALL
     BANKSEL I2CFLAG
     BSF	    I2CFLAG,2	    ;Set a flag that the ID of the board is needed
     RETURN
-
 ;======I2C HANDLER END==========================================================
 
 ;======ADC HANDLER==============================================================
@@ -456,7 +456,7 @@ T2HANDLER
     RETURN                  ;takes 48ms max to take a new measuremnt. The timer is
                             ;reset every 48ms because of this.
 ADC0
-    BANKSEL ADCON0          
+    BANKSEL ADCON0           
     BSF     ADCON0,GO       ;Start ADC for AN0
     BANKSEL FSR1L_SHAD      
     MOVLW   LOW(SENSOR1)    ;Set memory location for the next result
@@ -482,62 +482,62 @@ ADC2
 
 ;----WRITE ADDRESS--------------------------------------------------------------
 WRITEADD
-    BCF     PFLAG,0     ;Clear the Flag that was set
+    BCF     PFLAG,0	    ;Clear the Flag that was set
 
     BANKSEL EEADRL      
-    MOVLW   0X00        ;Slave address is placed in EEPROM address 0x00
+    MOVLW   0X00	    ;Slave address is placed in EEPROM address 0x00
     MOVWF   EEADRL
     BANKSEL SLVADD
-    MOVF    SLVADD,0    ;Move slave address that is to be saved into EEDAT
-    BANKSEL EEDATL      ;//
-    MOVWF   EEDATL      ;/
-    BCF     EECON1,CFGS ;Deselect configuration space
-    BCF     EECON1,EEPGD;Point to Data Memory
-    BSF     EECON1,WREN ;Enable Write
+    MOVF    SLVADD,0	    ;Move slave address that is to be saved into EEDAT
+    BANKSEL EEDATL	    ;//
+    MOVWF   EEDATL	    ;/
+    BCF     EECON1,CFGS	    ;Deselect configuration space
+    BCF     EECON1,EEPGD    ;Point to Data Memory
+    BSF     EECON1,WREN	    ;Enable Write
 
-    BCF     INTCON,GIE  ;Disable interrupts
+    BCF     INTCON,GIE	    ;Disable interrupts
 
-    MOVLW   0X55        ;Charge Pump
-    MOVWF   EECON2      ;///
-    MOVLW   0XAA        ;//
-    MOVWF   EECON2      ;/
-    BSF     EECON1,WR   ;Write the value into the address
+    MOVLW   0X55	    ;Charge Pump
+    MOVWF   EECON2	    ;///
+    MOVLW   0XAA	    ;//
+    MOVWF   EECON2	    ;/
+    BSF     EECON1,WR	    ;Write the value into the address
 
-    BSF     INTCON,GIE  ;Re enable interrupts
-    BCF     EECON1,WREN ;Disable Write
-    BTFSC   EECON1,WR   ;Wait until write is finished
-    GOTO    $-2         ;/
-    BANKSEL SLVADD      ;Set the Slave address of the PIC to the new value that
-    LSLF    SLVADD,0    ;was saved into the EEPROM
-    BANKSEL SSPADD      ;//
-    MOVWF   SSPADD      ;/
+    BSF     INTCON,GIE	    ;Re enable interrupts
+    BCF     EECON1,WREN	    ;Disable Write
+    BTFSC   EECON1,WR	    ;Wait until write is finished
+    GOTO    $-2		    ;/
+    BANKSEL SLVADD	    ;Set the Slave address of the PIC to the new value that
+    LSLF    SLVADD,0	    ;was saved into the EEPROM
+    BANKSEL SSPADD	    ;//
+    MOVWF   SSPADD	    ;/
     RETURN
 ;----WRITE ADDRESS END----------------------------------------------------------
 
 ;----ADC CONVERTER--------------------------------------------------------------
 ADCCONVERT
-    BCF	    PFLAG,1	;Clear ADC flag
-    MOVLW   D'6'	;Shift ADC result 6 times to right justify 10-bit result
-    MOVWF   ADCCOUNT	;//////
-RJUSTIFY		;/////
-    LSRF    ADCRESH,1	;////
-    RRF	    ADCRESL,1	;///
-    DECFSZ  ADCCOUNT	;//
-    GOTO    RJUSTIFY	;/
+    BCF	    PFLAG,1	    ;Clear ADC flag
+    MOVLW   D'6'	    ;Shift ADC result 6 times to right justify 10-bit result
+    MOVWF   ADCCOUNT	    ;//////
+RJUSTIFY		    ;/////
+    LSRF    ADCRESH,1	    ;////
+    RRF	    ADCRESL,1	    ;///
+    DECFSZ  ADCCOUNT	    ;//
+    GOTO    RJUSTIFY	    ;/
+	
+    MOVF    ADCRESH,0	    ;Set the Denominator as the ADC result
+    MOVWF   DIVISORH	    ;///
+    MOVF    ADCRESL,0	    ;//
+    MOVWF   DIVISORL	    ;/
     
-    MOVF    ADCRESH,0	;Set the Denominator as the ADC result
-    MOVWF   DIVISORH	;///
-    MOVF    ADCRESL,0	;//
-    MOVWF   DIVISORL	;/
+    MOVLW   0X17	    ;The Nominator is Constant value that brings result in
+    MOVWF   DIVIDENDH	    ;line with the inverse distance curve of the sensor.
+    MOVLW   0XA2	    ;//
+    MOVWF   DIVIDENDL	    ;/
     
-    MOVLW   0X17	;The Nominator is Constant value that brings result in
-    MOVWF   DIVIDENDH	;line with the inverse distance curve of the sensor.
-    MOVLW   0XA2	;//
-    MOVWF   DIVIDENDL	;/
-    
-    CALL    DIVISION	;Call function to do division to get distance from ADC
-			;result    
-    MOVF    DIVIDENDL,0	;Move the result of division into Sensors Registers
+    CALL    DIVISION	    ;Call function to do division to get distance from ADC
+			    ;result    
+    MOVF    DIVIDENDL,0	    ;Move the result of division into Sensors Registers
     MOVWF   INDF1
     
     RETURN
@@ -545,37 +545,37 @@ RJUSTIFY		;/////
     
 ;----Division-------------------------------------------------------------------
 DIVISION
-    CLRF    REMAINH	;Clear the remainder and and carry bit before division
-    CLRF    REMAINL	;operation
-    BCF	    STATUS,C	;/
+    CLRF    REMAINH	    ;Clear the remainder and and carry bit before division
+    CLRF    REMAINL	    ;operation
+    BCF	    STATUS,C	    ;/
     
-    MOVLW   D'17'	;17 loops for 16-bit division
-    MOVWF   ADCCOUNT	;/
+    MOVLW   D'17'	    ;17 loops for 16-bit division
+    MOVWF   ADCCOUNT	    ;/
     
 DIVIDELOOP
-    RLF	    DIVIDENDL,1	;Rotate the Nominator Left with carry
-    RLF	    DIVIDENDH,1	;/
-    DECFSZ  ADCCOUNT,1	;Decerment Loop Counter	exit if done
-    GOTO    $+2		;Don't Exit Division function
-    RETURN		;Division is done
+    RLF	    DIVIDENDL,1	    ;Rotate the Nominator Left with carry
+    RLF	    DIVIDENDH,1	    ;/
+    DECFSZ  ADCCOUNT,1	    ;Decerment Loop Counter	exit if done
+    GOTO    $+2		    ;Don't Exit Division function
+    RETURN		    ;Division is done
     
-    RLF	    REMAINL,1	;Rotate the Remainder Left with carry
-    RLF	    REMAINH,1	;/
-    MOVF    DIVISORL,0	;Subtract Denominator from the remainder
-    SUBWF   REMAINL,1	;///
-    MOVF    DIVISORH,0	;//
-    SUBWFB  REMAINH,1	;/
-    BTFSS   STATUS,C	;Check to see if result was Negative
-    GOTO    $+3		;If result is negative skip 3 lines
-    BSF	    STATUS,C	;Set Carry bit
-    GOTO    DIVIDELOOP	;Restart Loop
+    RLF	    REMAINL,1	    ;Rotate the Remainder Left with carry
+    RLF	    REMAINH,1	    ;/
+    MOVF    DIVISORL,0	    ;Subtract Denominator from the remainder
+    SUBWF   REMAINL,1	    ;///
+    MOVF    DIVISORH,0	    ;//
+    SUBWFB  REMAINH,1	    ;/
+    BTFSS   STATUS,C	    ;Check to see if result was Negative
+    GOTO    $+3		    ;If result is negative skip 3 lines
+    BSF	    STATUS,C	    ;Set Carry bit
+    GOTO    DIVIDELOOP	    ;Restart Loop
     
-    MOVF    DIVISORL,0	;Add the Denominator back to the remainder
-    ADDWF   REMAINL,1	;///
-    MOVF    DIVISORH,0	;//
-    ADDWFC  REMAINH,1	;/
-    BCF	    STATUS,C	;Clear Carry bit
-    GOTO    DIVIDELOOP	;Restart Division Loop
+    MOVF    DIVISORL,0	    ;Add the Denominator back to the remainder
+    ADDWF   REMAINL,1	    ;///
+    MOVF    DIVISORH,0	    ;//
+    ADDWFC  REMAINH,1	    ;/
+    BCF	    STATUS,C	    ;Clear Carry bit
+    GOTO    DIVIDELOOP	    ;Restart Division Loop
 ;----Division end---------------------------------------------------------------
     
 ;====MAIN=======================================================================
@@ -583,7 +583,7 @@ MAINBEGIN
     BANKSEL PFLAG	    
     BTFSC   PFLAG,0	    ;Test to see if a new slave address was set
     CALL    WRITEADD	    ;Write new slave address to EEPROM
-    BANKSEL PFLAG
+    BANKSEL PFLAG 
     BTFSC   PFLAG,1	    ;Test to see if ADC result needs to be handled
     CALL    ADCCONVERT	    ;Format ADC result and place result in correct register
     GOTO    MAINBEGIN
