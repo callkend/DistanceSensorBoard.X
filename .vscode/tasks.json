@@ -8,20 +8,10 @@
             "type": "mplabx",
             "task": "build",
             "projectFolder": "${workspaceFolder}",
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            }
-        },
-        {
-            "label": "Shell Build",
-            "type": "shell",
-            "command": "c:\\Program Files (x86)\\Microchip\\MPLABX\\v5.30\\gnuBins\\gnuWin32\\bin\\make.exe",
-            "args": [
-                "-f",
-                "nbproject/Makefile-default.mk",
-                "SUBPROJECTS= .build-conf"
+            "configuration": "default",
+            "problemMatcher": [
+                "$mpasm",
+                "$mpasm-msg"
             ],
             "group": {
                 "kind": "build",
