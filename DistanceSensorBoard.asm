@@ -8,7 +8,7 @@
 
 ; CONFIG1
 ; __config 0xC9E4
- __CONFIG _CONFIG1, _FOSC_INTOSC & _WDTE_OFF & _PWRTE_OFF & _MCLRE_ON & _CP_OFF & _CPD_OFF & _BOREN_ON & _CLKOUTEN_OFF & _IESO_OFF & _FCMEN_OFF
+ __CONFIG _CONFIG1, _FOSC_INTOSC & _WDTE_ON & _PWRTE_OFF & _MCLRE_ON & _CP_OFF & _CPD_OFF & _BOREN_ON & _CLKOUTEN_OFF & _IESO_OFF & _FCMEN_OFF
 ; CONFIG2
 ; __config 0xDEFF
  __CONFIG _CONFIG2, _WRT_OFF & _PLLEN_OFF & _STVREN_ON & _BORV_LO & _LPBOR_OFF & _LVP_OFF
@@ -73,7 +73,7 @@ SETUP
     BANKSEL TRISA	    ;Set RA0 - RA2 to inputs rest to outputs
     MOVLW   B'00000111'	    ;//
     MOVWF   TRISA	    ;/
-    MOVLW   B'00011000'	    ;Set RB6 - RB7 to inputs for I2C
+    MOVLW   B'00011000'	    ;Set RC4 - RC3 to inputs for I2C
     MOVWF   TRISC	    ;
     CLRF    TRISB	    ;Set PortC to be outputs
     BANKSEL ANSELA	    ;Set RA0 - RA2 as analog inputs
@@ -105,12 +105,16 @@ SETUP
     MOVWF   IDFLAG	    ;/
     MOVLW   0X20	    ;Used to set the default address if no address in the
     MOVWF   SLVADD	    ;EEPROM
+    CLRF    TCOUNT
 ;------End Personal Memory Setup------------------------------------------------
     
 ;------Indirect Addressing Setup------------------------------------------------
     BANKSEL FSR0L	    ;Set the indirect addressing to the start location
     MOVLW   LOW(SENSOR1)    ;//
-    MOVWF   FSR0L	    ;/
+    MOVWF   FSR0L	    ;/                                                                                                                                                                                                                                                                                      
+    MOVWF   FSR1L   
+    CLRF    FSR0H
+    CLRF    FSR1H
 ;------End Indirect Addressing Setup--------------------------------------------
     
 ;------ADC Setup----------------------------------------------------------------
@@ -282,7 +286,8 @@ INTERRUPT
 ;=====END INTERRUPT=============================================================
     
 ;======I2C HANDLER==============================================================
-I2CHANDLER		
+I2CHANDLER
+    CLRWDT
     BCF	    PIR1,SSP1IF	    ;Clear MSSP Flag
     
     BANKSEL SSPSTAT         
@@ -536,11 +541,21 @@ RJUSTIFY		    ;/////
     MOVWF   DIVIDENDL	    ;/
     
     CALL    DIVISION	    ;Call function to do division to get distance from ADC
-			    ;result    
-    MOVF    DIVIDENDL,0	    ;Move the result of division into Sensors Registers
-    MOVWF   INDF1
+			    ;result
+    MOVF    DIVIDENDH,0
+    BTFSS   STATUS,Z
+    GOTO    $+5
     
+    MOVLW   D'64'
+    SUBWF   DIVIDENDL,0
+    MOVF    DIVIDENDL,0
+    BTFSC   STATUS,C
+    MOVLW   D'64'
+    
+    ;MOVF    DIVIDENDL,0	    ;Move the result of division into Sensors Registers
+    MOVWF   INDF1
     RETURN
+
 ;----ADC CONVERTER END----------------------------------------------------------
     
 ;----Division-------------------------------------------------------------------
